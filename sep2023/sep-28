@@ -1,0 +1,59 @@
+#  Cosmic Circuit - Clockwise
+
+import math
+
+def reward_function(params):
+    # Read parameters from the `params` dictionary
+    track_width = params['track_width']
+    distance_from_center = params['distance_from_center']
+    all_wheels_on_track = params['all_wheels_on_track']
+    speed = params['speed']
+    steering_angle = params['steering_angle']
+    waypoints = params['waypoints']
+    closest_waypoints = params['closest_waypoints']
+    heading = params['heading']
+
+    # Define heading_weight and steering_weight (you can adjust these)
+    heading_weight = 2.0
+    steering_weight = 3.0
+
+    # Calculate track_direction based on closest waypoints
+    next_point = waypoints[closest_waypoints[1]]
+    prev_point = waypoints[closest_waypoints[0]]
+    track_direction = math.atan2(next_point[1] - prev_point[1], next_point[0] - prev_point[0])
+    track_direction = math.degrees(track_direction)
+
+    # Distance Reward
+    distance_reward = 1.0 - (distance_from_center / (track_width * 0.5))
+
+    # Speed Reward
+    if track_direction < 20:
+        SPEED_THRESHOLD = 1.2  # Increase speed threshold for low track_direction
+    elif track_direction >45:
+        SPEED_THRESHOLD = 0.9  # Reduce speed threshold for high track_direction
+    else:
+        SPEED_THRESHOLD = 1.0
+
+    if not all_wheels_on_track:
+        speed_reward = 1e-3  # Penalize if the car goes off track
+    elif speed < SPEED_THRESHOLD:
+        speed_reward = 0.5  # Penalize if the car goes too slow
+    else:
+        speed_reward = 1.0  # High reward if the car stays on track and goes fast
+
+    # Heading and Steering Reward
+    adjusted_steering = steering_angle + (track_direction / 180.0)
+    direction_diff = abs(track_direction - heading)
+    if direction_diff > 180:
+        direction_diff = 360 - direction_diff
+
+    abs_heading_reward = 1 - (direction_diff / 180.0)
+    heading_reward = abs_heading_reward * heading_weight
+
+    abs_steering_reward = 1 - (abs(adjusted_steering - direction_diff) / 180.0)
+    steering_reward = abs_steering_reward * steering_weight
+
+    # Final Reward
+    final_reward = distance_reward + 2 * speed_reward + 2 * (heading_reward + steering_reward)
+
+    return float(final_reward)
