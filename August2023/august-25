@@ -1,0 +1,44 @@
+import math
+
+def reward_function(params):
+    # Read input variables
+    track_width = params['track_width']
+    distance_from_center = params['distance_from_center']
+    steering = abs(params['steering_angle'])
+    speed = params['speed']
+    all_wheels_on_track = params['all_wheels_on_track']
+    steps = params['steps']
+    heading = params['heading']
+    waypoints = params['waypoints']
+    closest_waypoints = params['closest_waypoints']
+    
+    # Set the rewards
+    reward = 1e-3
+    max_speed_reward = 4.0
+    
+    # Reward if car stays on track and reaches max speed
+    if all_wheels_on_track and speed >= 1:
+        reward += max_speed_reward
+    elif all_wheels_on_track and speed >= 0.9:
+        reward += max_speed_reward - 1
+    
+    # Penalize if car is too far from the center
+    if distance_from_center > 0.4 * track_width:
+        reward *= 0.8
+        
+    # Penalize if car is going too fast on turns
+    next_waypoint = waypoints[closest_waypoints[1]]
+    prev_waypoint = waypoints[closest_waypoints[0]]
+    heading_error = abs(heading - math.atan2(next_waypoint[1] - prev_waypoint[1], next_waypoint[0] - prev_waypoint[0]))
+    if heading_error > 0.2 and speed > 0.7:
+        reward *= 0.8
+    elif steering > 20.0:
+        reward *= 0.8
+    # Penalize if car is off track
+    if not all_wheels_on_track:
+        reward *= 0.2
+        
+    # Reduce reward for taking longer to finish
+    reward *= (1 - (steps / 400))
+        
+    return float(reward)
