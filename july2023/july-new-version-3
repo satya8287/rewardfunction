@@ -1,0 +1,85 @@
+## Roger Ring - Clockwise
+
+import math
+
+# Constants
+MAX_SPEED = 1.1  # Maximum speed achievable (in m/s)
+MIN_SPEED_STRAIGHT = 1.0  # Minimum speed for straight sections (in m/s)
+MIN_SPEED_TURN = 0.92  # Minimum speed for turns (in m/s)
+
+# Track specific parameters
+TOTAL_LAPS = 3
+EXPECTED_TIME_IN_SECONDS = 170  # 2 minutes and 50 seconds
+EXPECTED_TIME_PER_LAP = EXPECTED_TIME_IN_SECONDS / TOTAL_LAPS
+
+# Weightage for rewards
+REWARD_ON_TRACK = 1.0
+REWARD_NEXT_WAYPOINT = 2.0
+REWARD_STRAIGHT_SPEED = 0.5
+REWARD_TURN_SPEED = 0.3
+REWARD_MIN_PROGRESS = 0.2
+REWARD_AVOID_ZIGZAG = 0.3
+
+def reward_function(params):
+    # Get parameters
+    all_wheels_on_track = params['all_wheels_on_track']
+    distance_from_center = params['distance_from_center']
+    track_width = params['track_width']
+    waypoints = params['waypoints']
+    closest_waypoints = params['closest_waypoints']
+    heading = params['heading']
+    speed = params['speed']
+    progress = params['progress']
+
+    # Initialize reward
+    reward = 0
+
+    # Reward for staying on track
+    if all_wheels_on_track:
+        reward += REWARD_ON_TRACK
+    else:
+        return 1e-3  # Penalize if off-track
+
+    # Calculate the direction of the next waypoint
+    next_point = waypoints[closest_waypoints[1]]
+    prev_point = waypoints[closest_waypoints[0]]
+    track_direction = math.atan2(next_point[1] - prev_point[1], next_point[0] - prev_point[0])
+    track_direction = math.degrees(track_direction)
+    track_direction = (track_direction + 360) % 360
+
+    # Calculate the difference between the car heading and track direction
+    direction_diff = abs(track_direction - heading)
+
+    # Penalize if the car is zig-zagging
+    if direction_diff > 10:
+        reward *= REWARD_AVOID_ZIGZAG
+
+    # Calculate the distance from the centerline
+    distance_from_center = abs(distance_from_center)
+
+    # Calculate the average speed per lap
+    lap_time = params['steps'] / 15.0  # Time for the current lap (in seconds)
+    laps_completed = progress / 100.0
+    if laps_completed > 0:
+        average_speed_per_lap = progress / lap_time
+    else:
+        average_speed_per_lap = 0
+
+    # Reward for maintaining average speed above 1 m/s on straight and smooth curves
+    if speed >= MIN_SPEED_STRAIGHT and distance_from_center <= 0.5 * track_width:
+        reward += REWARD_STRAIGHT_SPEED
+
+    # Reward for maintaining minimum speed on turns
+    if speed >= MIN_SPEED_TURN:
+        reward += REWARD_TURN_SPEED
+
+    # Reward for reaching the next waypoint
+    reward += REWARD_NEXT_WAYPOINT
+
+    # Additional reward for making progress
+    if laps_completed > 0:
+        time_remaining_per_lap = EXPECTED_TIME_PER_LAP - lap_time
+        if time_remaining_per_lap > 0:
+            reward += REWARD_MIN_PROGRESS
+
+    return reward
