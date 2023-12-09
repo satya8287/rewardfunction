@@ -1,0 +1,61 @@
+## Lars Circuit - Clockwise
+
+import math
+
+def reward_function(params):
+    # Read input variables
+    track_width = params['track_width']
+    distance_from_center = params['distance_from_center']
+    speed = params['speed']
+    all_wheels_on_track = params['all_wheels_on_track']
+    steps = params['steps']
+    progress = params['progress']
+    is_left_of_center = params['is_left_of_center']
+    is_reversed = params['is_reversed']
+    waypoints = params['waypoints']
+    closest_waypoints = params['closest_waypoints']
+    
+    # Set the rewards
+    reward = 1e-3
+    max_speed_reward = 4.0
+    
+    # Reward for staying on track and reaching maximum speed
+    if all_wheels_on_track and speed > 1.0:
+        reward += max_speed_reward
+    
+    # Penalize for going too slow
+    if speed < 1.0:
+        reward *= 0.8
+    
+    # Penalize for going off track
+    if not all_wheels_on_track:
+        reward *= 0.5
+    
+    # Penalize for distance from center
+    if distance_from_center > 0.35*track_width:
+        reward *= 0.5
+    
+    # Reward for making progress
+    reward += progress/100
+    
+    # Penalize for taking too many steps
+    if steps > 300:
+        reward *= 0.5
+    
+    # Penalize for driving in reverse
+    if is_reversed:
+        reward *= 0.5
+    
+    # Reward for staying on the left side of the track
+    if is_left_of_center:
+        reward += 0.2
+    
+    # Reward for following the waypoints
+    next_point = waypoints[closest_waypoints[1]]
+    prev_point = waypoints[closest_waypoints[0]]
+    heading = math.atan2(next_point[1] - prev_point[1], next_point[0] - prev_point[0])
+    track_direction = heading - params['heading']
+    if abs(track_direction) > 0.7:
+        reward *= 0.5
+    
+    return float(reward)
