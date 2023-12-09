@@ -1,0 +1,53 @@
+#  Cosmic Circuit - Clockwise
+
+import math
+
+def reward_function(params):
+    # Read input variables
+    track_width = params['track_width']
+    distance_from_center = params['distance_from_center']
+    steering = abs(params['steering_angle'])
+    speed = params['speed']
+    all_wheels_on_track = params['all_wheels_on_track']
+    heading = params['heading']
+    waypoints = params['waypoints']
+    closest_waypoints = params['closest_waypoints']
+
+    # Step 1: Calculate track_direction based on closest waypoints
+    next_point = waypoints[closest_waypoints[1]]
+    prev_point = waypoints[closest_waypoints[0]]
+    track_direction = math.atan2(next_point[1] - prev_point[1], next_point[0] - prev_point[0])
+    track_direction = math.degrees(track_direction)
+
+    # Step 2: Define speed threshold according to track_direction
+    if track_direction < 5:
+        SPEED_THRESHOLD = 1.2  # Increase speed threshold for low track_direction
+    elif track_direction < 20:
+        SPEED_THRESHOLD = 1.1
+    else:
+        SPEED_THRESHOLD = 1.0  # Default speed threshold
+
+    # Step 3: Calculate speed reward
+    if all_wheels_on_track and speed >= SPEED_THRESHOLD:
+        speed_reward = 1.0  # High reward if speed is above threshold and on track
+    else:
+        speed_reward = 0.5  # No reward otherwise
+
+    # Step 4: Calculate heading error and reward adjustment
+    next_waypoint = waypoints[closest_waypoints[1]]
+    prev_waypoint = waypoints[closest_waypoints[0]]
+    heading_error = abs(heading - math.atan2(next_waypoint[1] - prev_waypoint[1], next_waypoint[0] - prev_waypoint[0])) * (180.0 / math.pi)
+
+    if heading_error < 10.0:
+        reward_adjustment = 0.5  # Multiply reward by 3/2 if heading error is less than 10 degrees
+    else:
+        reward_adjustment = 0.1  # No reward adjustment
+
+    # Step 5: Penalize the speed reward if the steering angle is too high
+    if steering > 20.0:
+        speed_reward *= 0.8  # Reduce speed reward for high steering angles
+
+    # Combine rewards and apply the heading error adjustment
+    final_reward = speed_reward + reward_adjustment
+
+    return float(final_reward)
