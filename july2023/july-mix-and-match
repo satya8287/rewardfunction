@@ -1,0 +1,72 @@
+# BreadCentric Speedway - Clockwise
+
+
+import math
+def reward_function(params):
+    '''
+    Example of rewarding the agent to stay inside the two borders of the track
+    Example of penalize steering, which helps mitigate zig-zag behaviors
+    '''
+    
+    # Read input parameters
+    all_wheels_on_track = params['all_wheels_on_track']
+    distance_from_center = params['distance_from_center']
+    track_width = params['track_width']
+    steering = abs(params['steering_angle']) # Only need the absolute steering angle
+    waypoints = params['waypoints']
+    closest_waypoints = params['closest_waypoints']
+    heading = params['heading']
+    speed = params['speed']
+    x=params['x']
+    y=params['y']
+    
+    # Give a very low reward by default
+    reward = 1e-3
+    rabbit = [0,0]
+    pointing = [0,0]
+    
+ 
+    # the car is somewhere in between the track borders 
+    if all_wheels_on_track and (0.5*track_width - distance_from_center) >= 0.05:
+
+        # Set the speed threshold based your action space 
+        SPEED_THRESHOLD = 9.2 
+        if speed > SPEED_THRESHOLD:
+            reward += 0.5
+
+        # implementation of reward function for steering angle
+        STEERING_THRESHOLD = 14.4
+    
+        if abs(steering) < STEERING_THRESHOLD:
+            steering_reward = math.sqrt(- (8 ** 2 + steering ** 2) + math.sqrt(4 * 8 ** 2 * steering ** 2 + (12 ** 2) ** 2) ) / 10
+        else:
+            steering_reward = 0
+
+        # aditional reward if the car is not steering too much
+        reward += steering_reward
+
+        # reward for the car taking fast actions (speed is in m/s)
+        reward += math.sin(speed/math.pi * 5/6)
+    
+        # same reward for going slow with greater steering angle then going fast straight ahead 
+        reward += math.sin(0.4949 * (0.475 * (speed - 1.5241) + 0.5111 * steering ** 2))
+
+
+        # Find nearest waypoint coordinates
+        rabbit = waypoints[closest_waypoints[1]]
+        radius = math.hypot(x - rabbit[0], y - rabbit[1])
+        pointing[0] = x + (radius * math.cos(heading))
+        pointing[1] = y + (radius * math.sin(heading))
+    
+        vector_delta = math.hypot(pointing[0] - rabbit[0], pointing[1] - rabbit[1])
+        # Max distance for pointing away will be the radius * 2
+        # Min distance means we are pointing directly at the next waypoint
+        # We can setup a reward that is a ratio to this max.
+        if vector_delta == 0:
+            reward += 1
+        else:
+            reward += ( 1 - ( vector_delta / (radius * 2)))
+    
+    
+    # Always return a float value
+    return float(reward)
